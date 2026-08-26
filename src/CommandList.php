@@ -18,6 +18,7 @@ class CommandList extends Command
             $this->writeln(PHP_EOL.$this->color(" Here are commands like '{$keyword}': ", 'blue').PHP_EOL);
         } else {
             $commands = $this->getRegisteredCommands();
+            unset($commands['list']);
             $header = $this->getListHeader();
             if ($header !== null) {
                 if ($header['typing_delay'] !== null && $header['typing_delay'] > 0) {
@@ -86,7 +87,9 @@ class CommandList extends Command
             ++$groupCount;
         }
 
-        $this->writeln(" Type '".$this->color("php ".$this->getFilename()." <command> --help", 'blue')."' for usage information".PHP_EOL);
+        $this->writeln('');
+        $this->writeln("Type '" . $this->color('<command> --help', 'blue') . "' for usage information");
+        $this->writeln("Type '" . $this->color('list', 'blue') . "' to show all commands" . PHP_EOL);
     }
 
 }

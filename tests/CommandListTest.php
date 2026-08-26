@@ -21,6 +21,9 @@ class CommandListTest extends TestCase
         $output = $this->_list_commands($app);
 
         self::assertMatchesRegularExpression('/Build:\n\s*1\/ alpha\s+Alpha command\n\s*2\/ bravo\s+Bravo command/', $output);
+        self::assertStringNotContainsString('General:', $output);
+        self::assertStringNotContainsString('list                  Show available commands', $output);
+        self::assertStringContainsString("\nType '<command> --help' for usage information\nType 'list' to show all commands", $output);
     }
 
     public function test_keeps_group_registration_order(): void
