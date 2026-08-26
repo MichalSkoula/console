@@ -1,10 +1,10 @@
-MichalSkoula Console
+PHP Console Kit
 ====================
 
-MichalSkoula Console is a simple PHP library for creating command-line applications.
-This library strongly inspired by [Laravel Artisan Console](https://laravel.com/docs/5.4/artisan).
+PHP Console Kit is a simple PHP library for creating command-line applications.
+This library strongly inspired by [Laravel Artisan Console](https://laravel.com/docs/5.4/artisan). This project is a fork of [rakit/console](https://github.com/rakit/console).
 
-This project is a fork of [rakit/console](https://github.com/rakit/console).
+<img width="905" height="331" alt="image" src="https://github.com/user-attachments/assets/6485e772-846a-4e19-b735-dab7f407c5bf" />
 
 ## Features
 
@@ -17,20 +17,7 @@ This project is a fork of [rakit/console](https://github.com/rakit/console).
 
 ## Installation
 
-Until the package is published on Packagist, add its GitHub repository to your project's `composer.json`:
-
-```json
-{
-    "repositories": [
-        {
-            "type": "vcs",
-            "url": "https://github.com/MichalSkoula/console"
-        }
-    ]
-}
-```
-
-Then install the package:
+Install the package:
 
 ```bash
 composer require michalskoula/console:^0.2
