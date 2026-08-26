@@ -90,7 +90,9 @@ php cli hello --help
 Use groups to organize the command list. Commands are displayed in registration order.
 
 ```php
-$app->group('Maintenance', 'red', function () {
+use MichalSkoula\Console\Color;
+
+$app->group('Maintenance', Color::RED, function () {
     $this->command('maintenance:on', 'Enable maintenance mode', function () {
         // ...
     });
@@ -102,10 +104,10 @@ The fourth argument of `command()` changes the command name color:
 ```php
 $app->command('danger', 'Run a dangerous command', function () {
     // ...
-}, 'red');
+}, Color::RED);
 ```
 
-Available foreground colors are `black`, `dark_gray`, `blue`, `light_blue`, `green`, `light_green`, `cyan`, `light_cyan`, `red`, `light_red`, `purple`, `light_purple`, `brown`, `yellow`, `light_gray`, and `white`.
+Available foreground colors are defined as `Color` constants, for example `Color::LIGHT_GREEN` and `Color::YELLOW`.
 
 ## List header
 
@@ -115,11 +117,11 @@ Use `setListHeader()` to replace the default `Available Commands:` text. The hea
 $app->setListHeader(<<<'HEADER'
 My Console
 ==========
-HEADER, 'cyan');
+HEADER, Color::CYAN);
 ```
 
 Pass a third argument in milliseconds to display the header with a typing effect:
 
 ```php
-$app->setListHeader($asciiArt, 'cyan', 12);
+$app->setListHeader($asciiArt, Color::CYAN, 12);
 ```
