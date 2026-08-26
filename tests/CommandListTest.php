@@ -10,7 +10,7 @@ use PHPUnit\Framework\TestCase;
 
 class CommandListTest extends TestCase
 {
-    public function test_lists_grouped_commands_without_empty_rows(): void
+    public function test_lists_grouped_commands_in_registration_order_without_empty_rows(): void
     {
         $app = new App(['console', 'list']);
         $app->group('Build', 'blue', function (): void {
@@ -20,7 +20,7 @@ class CommandListTest extends TestCase
 
         $output = $this->_list_commands($app);
 
-        self::assertMatchesRegularExpression('/Build:\n\s*1\/ alpha\s+Alpha command\n\s*2\/ bravo\s+Bravo command/', $output);
+        self::assertMatchesRegularExpression('/Build:\n\s*1\/ bravo\s+Bravo command\n\s*2\/ alpha\s+Alpha command/', $output);
         self::assertStringNotContainsString('General:', $output);
         self::assertStringNotContainsString('list                  Show available commands', $output);
         self::assertStringContainsString("\nType '<command> --help' for usage information\nType 'list' to show all commands", $output);

@@ -87,7 +87,7 @@ php cli hello --help
 
 ## Command groups and colors
 
-Use groups to organize the command list. Commands within each group are sorted alphabetically.
+Use groups to organize the command list. Commands are displayed in registration order.
 
 ```php
 $app->group('Maintenance', 'red', function () {

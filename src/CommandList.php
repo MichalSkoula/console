@@ -76,7 +76,6 @@ class CommandList extends Command
                 $this->writeln($this->color($group['name'] . ':', $group['color']));
             }
 
-            ksort($group['commands']);
             foreach ($group['commands'] as $name => $command) {
                 $no = ++$count.'/ ';
                 $this->write(str_repeat(' ', 4 - strlen($no)).$this->color($no, 'dark_gray'));
