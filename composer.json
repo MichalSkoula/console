@@ -1,17 +1,24 @@
 {
-  "name": "rakit/console",
-  "description": "PHP Simple Library to Create Command Line Interface Application",
+  "name": "michalskoula/console",
+  "description": "Simple PHP library for creating command-line applications",
   "type": "library",
   "license": "MIT",
   "authors": [
     {
       "name": "Muhammad Syifa",
       "email": "emsifa@gmail.com"
+    },
+    {
+      "name": "Michal Skoula",
+      "email": "michal@skoula.cz"
     }
   ],
+  "require": {
+    "php": "^8.2"
+  },
   "autoload": {
     "psr-4": {
-        "Rakit\\Console\\": "src"
+        "MichalSkoula\\Console\\": "src"
     }
   }
 }

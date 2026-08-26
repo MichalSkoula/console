@@ -1,6 +1,6 @@
 <?php
 
-namespace Rakit\Console;
+namespace MichalSkoula\Console;
 
 abstract class Command
 {

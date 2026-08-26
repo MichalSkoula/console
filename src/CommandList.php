@@ -1,6 +1,6 @@
 <?php
 
-namespace Rakit\Console;
+namespace MichalSkoula\Console;
 
 class CommandList extends Command
 {

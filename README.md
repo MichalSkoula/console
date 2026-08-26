@@ -1,8 +1,10 @@
-Rakit Console
-=======================
+MichalSkoula Console
+====================
 
-Rakit Console is simple PHP library to create Command Line Interface (CLI) Application.
+MichalSkoula Console is a simple PHP library for creating command-line applications.
 This library strongly inspired by [Laravel Artisan Console](https://laravel.com/docs/5.4/artisan).
+
+This project is a fork of [rakit/console](https://github.com/rakit/console).
 
 ## Features
 
@@ -15,10 +17,23 @@ This library strongly inspired by [Laravel Artisan Console](https://laravel.com/
 
 ## Installation
 
-Just run this composer command:
+Until the package is published on Packagist, add its GitHub repository to your project's `composer.json`:
+
+```json
+{
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/MichalSkoula/console"
+        }
+    ]
+}
+```
+
+Then install the package:
 
 ```bash
-composer require rakit/console
+composer require michalskoula/console:^0.2
 ```
 
 ## Quickstart
@@ -30,7 +45,7 @@ Create a file named `cli` (without extension).
 ```php
 <?php
 
-use Rakit\Console\App;
+use MichalSkoula\Console\App;
 
 require('vendor/autoload.php');
 

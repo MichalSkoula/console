@@ -1,6 +1,6 @@
 <?php
 
-namespace Rakit\Console\Concerns;
+namespace MichalSkoula\Console\Concerns;
 
 trait InputUtils
 {
