@@ -1,0 +1,52 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use MichalSkoula\Console\App;
+use MichalSkoula\Console\Color;
+
+require dirname(__DIR__) . '/vendor/autoload.php';
+
+$app = new App();
+
+$app->setListHeader(<<<'HEADER'
+ ██████╗ ██████╗ ███╗   ██╗███████╗ ██████╗ ██╗     ███████╗    ██╗  ██╗██╗████████╗
+██╔════╝██╔═══██╗████╗  ██║██╔════╝██╔═══██╗██║     ██╔════╝    ██║ ██╔╝██║╚══██╔══╝
+██║     ██║   ██║██╔██╗ ██║███████╗██║   ██║██║     █████╗      █████╔╝ ██║   ██║
+██║     ██║   ██║██║╚██╗██║╚════██║██║   ██║██║     ██╔══╝      ██╔═██╗ ██║   ██║
+╚██████╗╚██████╔╝██║ ╚████║███████║╚██████╔╝███████╗███████╗    ██║  ██╗██║   ██║
+ ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝ ╚═════╝ ╚══════╝╚══════╝    ╚═╝  ╚═╝╚═╝   ╚═╝
+HEADER, Color::LIGHT_GREEN);
+
+$app->group('Development', Color::BLUE, function (): void {
+    $this->command('lint', 'Check code style', function (): void {
+        $this->writeln('Code style is valid.');
+    });
+
+    $this->command('test', 'Run the test suite', function (): void {
+        $this->writeln('All tests passed.');
+    });
+});
+
+$app->group('Deployment', Color::PURPLE, function (): void {
+    $this->command('deploy {environment}', 'Deploy the application', function (string $environment): void {
+        $this->writeln("Deployed to {$environment}.");
+    });
+
+    $this->command('rollback', 'Roll back the latest deployment', function (): void {
+        $this->writeln('Deployment rolled back.');
+    });
+});
+
+$app->group('Maintenance', Color::YELLOW, function (): void {
+    $this->command('cache:clear', 'Clear the application cache', function (): void {
+        $this->writeln('Cache cleared.');
+    });
+
+    $this->command('cache:warm', 'Warm the application cache', function (): void {
+        $this->writeln('Cache warmed.');
+    });
+});
+
+$app->run();
