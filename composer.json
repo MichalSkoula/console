@@ -16,9 +16,20 @@
   "require": {
     "php": "^8.2"
   },
+  "require-dev": {
+    "phpunit/phpunit": "^11.5"
+  },
   "autoload": {
     "psr-4": {
-        "MichalSkoula\\Console\\": "src"
+      "MichalSkoula\\Console\\": "src"
     }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "MichalSkoula\\Console\\Tests\\": "tests"
+    }
+  },
+  "scripts": {
+    "test": "phpunit"
   }
 }

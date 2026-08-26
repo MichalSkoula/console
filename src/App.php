@@ -20,6 +20,11 @@ class App
     protected $options = [];
     protected $optionsAlias = [];
     protected $commands = [];
+    protected $commandGroups = [];
+    protected $currentCommandGroup;
+    protected $listHeader;
+    protected $listHeaderColor;
+    protected $listHeaderTypingDelay;
     protected $resolvedOptions = [];
 
     protected $foregroundColors = [
@@ -97,7 +102,9 @@ class App
             'handler' => [$command, 'handle'],
             'description' => $command->getDescription(),
             'args' => $args,
-            'options' => $options
+            'options' => $options,
+            'group' => $this->currentCommandGroup,
+            'color' => 'green'
         ];
     }
 
@@ -108,7 +115,7 @@ class App
      * @param string $description   command description
      * @param Closure $handler      command handler
      */
-    public function command($signature, $description, Closure $handler)
+    public function command($signature, $description, Closure $handler, $color = null)
     {
         list($commandName, $args, $options) = $this->parseCommand($signature);
 
@@ -116,8 +123,27 @@ class App
             'handler' => $handler,
             'description' => $description,
             'args' => $args,
-            'options' => $options
+            'options' => $options,
+            'group' => $this->currentCommandGroup,
+            'color' => $color ?: 'green'
         ];
+    }
+
+    public function group(string $name, string $color, Closure $handler): void
+    {
+        $this->commandGroups[$name] = [
+            'name' => $name,
+            'color' => $color
+        ];
+
+        $previousGroup = $this->currentCommandGroup;
+        $this->currentCommandGroup = $this->commandGroups[$name];
+
+        try {
+            $handler->call($this);
+        } finally {
+            $this->currentCommandGroup = $previousGroup;
+        }
     }
 
     /**
@@ -128,6 +154,35 @@ class App
     public function getRegisteredCommands()
     {
         return $this->commands;
+    }
+
+    public function getCommandGroups(): array
+    {
+        return $this->commandGroups;
+    }
+
+    public function setListHeader(string $header, ?string $color = null, ?int $typingDelay = null): void
+    {
+        if ($typingDelay !== null && $typingDelay < 0) {
+            throw new InvalidArgumentException('List header typing delay must not be negative');
+        }
+
+        $this->listHeader = $header;
+        $this->listHeaderColor = $color;
+        $this->listHeaderTypingDelay = $typingDelay;
+    }
+
+    public function getListHeader(): ?array
+    {
+        if ($this->listHeader === null) {
+            return null;
+        }
+
+        return [
+            'text' => $this->listHeader,
+            'color' => $this->listHeaderColor,
+            'typing_delay' => $this->listHeaderTypingDelay
+        ];
     }
 
     /**

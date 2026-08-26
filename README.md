@@ -84,3 +84,42 @@ You can show help by putting `--help` or `-h` for each command. For example:
 ```
 php cli hello --help
 ```
+
+## Command groups and colors
+
+Use groups to organize the command list. Commands within each group are sorted alphabetically.
+
+```php
+$app->group('Maintenance', 'red', function () {
+    $this->command('maintenance:on', 'Enable maintenance mode', function () {
+        // ...
+    });
+});
+```
+
+The fourth argument of `command()` changes the command name color:
+
+```php
+$app->command('danger', 'Run a dangerous command', function () {
+    // ...
+}, 'red');
+```
+
+Available foreground colors are `black`, `dark_gray`, `blue`, `light_blue`, `green`, `light_green`, `cyan`, `light_cyan`, `red`, `light_red`, `purple`, `light_purple`, `brown`, `yellow`, `light_gray`, and `white`.
+
+## List header
+
+Use `setListHeader()` to replace the default `Available Commands:` text. The header supports multiple lines, including ASCII art.
+
+```php
+$app->setListHeader(<<<'HEADER'
+My Console
+==========
+HEADER, 'cyan');
+```
+
+Pass a third argument in milliseconds to display the header with a typing effect:
+
+```php
+$app->setListHeader($asciiArt, 'cyan', 12);
+```

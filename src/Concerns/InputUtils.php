@@ -43,19 +43,7 @@ trait InputUtils
         $this->write($question.$this->questionSuffix);
 
         if ($this->isWindows()) {
-            $exe = __DIR__.'/../../bin/hiddeninput.exe';
-            // handle code running from a phar
-            if ('phar:' === substr(__FILE__, 0, 5)) {
-                $tmpExe = sys_get_temp_dir().'/hiddeninput.exe';
-                copy($exe, $tmpExe);
-                $exe = $tmpExe;
-            }
-            $value = rtrim(shell_exec($exe));
-            $this->writeln('');
-            if (isset($tmpExe)) {
-                unlink($tmpExe);
-            }
-            return $value ?: $default;
+            throw new \RuntimeException('Secret input is not supported on Windows');
         }
 
         if ($this->hasSttyAvailable()) {
