@@ -20,7 +20,7 @@ This library strongly inspired by [Laravel Artisan Console](https://laravel.com/
 Install the package:
 
 ```bash
-composer require michalskoula/console:^0.2
+composer require michalskoula/console
 ```
 
 ## Quickstart
