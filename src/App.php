@@ -5,29 +5,29 @@ namespace MichalSkoula\Console;
 use Closure;
 use InvalidArgumentException;
 use Exception;
-use RuntimeException;
 
 class App
 {
     use Concerns\InputUtils;
 
-    protected static $stty;
-    protected static $shell;
+    protected static ?bool $stty = null;
+    protected static string|false|null $shell = null;
 
-    protected $filename;
-    protected $command;
-    protected $arguments = [];
-    protected $options = [];
-    protected $optionsAlias = [];
-    protected $commands = [];
-    protected $commandGroups = [];
-    protected $currentCommandGroup;
-    protected $listHeader;
-    protected $listHeaderColor;
-    protected $listHeaderTypingDelay;
-    protected $resolvedOptions = [];
+    protected ?string $filename;
+    protected ?string $command;
+    protected array $arguments = [];
+    protected array $options = [];
+    protected array $optionsAlias = [];
+    protected array $commands = [];
+    protected array $commandGroups = [];
+    protected ?array $currentCommandGroup = null;
+    protected ?string $listHeader = null;
+    protected ?string $listHeaderColor = null;
+    protected ?int $listHeaderTypingDelay = null;
+    protected ShellCompletion $shellCompletion;
+    protected array $resolvedOptions = [];
 
-    protected $foregroundColors = [
+    protected array $foregroundColors = [
         'black' => '0;30',
         'dark_gray' => '1;30',
         'blue' => '0;34',
@@ -46,7 +46,7 @@ class App
         'white' => '1;37',
     ];
 
-    protected $backgroundColors = [
+    protected array $backgroundColors = [
         'black' => '40',
         'red' => '41',
         'green' => '42',
@@ -60,7 +60,7 @@ class App
     /**
      * Constructor
      */
-    public function __construct(array $argv = null)
+    public function __construct(?array $argv = null)
     {
         if (is_null($argv)) {
             $argv = $GLOBALS['argv'];
@@ -74,7 +74,10 @@ class App
             $this->optionsAlias
         ) = $this->parseArgv($argv);
 
+        $this->shellCompletion = new ShellCompletion((string) $this->filename);
         $this->register(new CommandList);
+        $this->registerCompletionCommand();
+        $this->registerCompletionGenerator();
     }
 
     /**
@@ -82,7 +85,7 @@ class App
      *
      * @param Command $command
      */
-    public function register(Command $command)
+    public function register(Command $command): void
     {
         list($commandName, $args, $options) = $this->parseCommand($command->getSignature());
 
@@ -104,7 +107,8 @@ class App
             'args' => $args,
             'options' => $options,
             'group' => $this->currentCommandGroup,
-            'color' => 'green'
+            'color' => 'green',
+            'hidden' => false
         ];
     }
 
@@ -115,7 +119,7 @@ class App
      * @param string $description   command description
      * @param Closure $handler      command handler
      */
-    public function command($signature, $description, Closure $handler, $color = null)
+    public function command(string $signature, string $description, Closure $handler, ?string $color = null): void
     {
         list($commandName, $args, $options) = $this->parseCommand($signature);
 
@@ -125,7 +129,77 @@ class App
             'args' => $args,
             'options' => $options,
             'group' => $this->currentCommandGroup,
-            'color' => $color ?: 'green'
+            'color' => $color ?: 'green',
+            'hidden' => false
+        ];
+    }
+
+    /**
+     * Register internal completion command.
+     *
+     * @return void
+     */
+    protected function registerCompletionCommand(): void
+    {
+        $this->_register_internal_command('__complete {words*}', 'Internal command for shell completion', function(array $words = []): void {
+            $commands = $this->getCompletionSuggestions($words);
+            foreach ($commands as $command) {
+                $this->writeln($command);
+            }
+        }, 'dark_gray', true);
+    }
+
+    /**
+     * Register completion script generator command.
+     *
+     * @return void
+     */
+    protected function registerCompletionGenerator(): void
+    {
+        $this->_register_internal_command(
+            'completion {shell=bash} {command?}',
+            'Generate shell completion script',
+            function(string $shell = 'bash', ?string $command = null): void {
+                $script = $this->getCompletionScript($shell, $command);
+                if ($script === null) {
+                    $this->error("Unsupported shell '{$shell}'");
+                    return;
+                }
+                $this->writeln($script);
+            },
+            'dark_gray',
+            true
+        );
+    }
+
+    /**
+     * Register a framework command without passing through a consumer's
+     * overridden command() method.
+     *
+     * @param string $signature
+     * @param string $description
+     * @param Closure $handler
+     * @param string|null $color
+     * @param bool $hidden
+     * @return void
+     */
+    protected function _register_internal_command(
+        string $signature,
+        string $description,
+        Closure $handler,
+        ?string $color = null,
+        bool $hidden = false
+    ): void {
+        list($commandName, $args, $options) = $this->parseCommand($signature);
+
+        $this->commands[$commandName] = [
+            'handler' => $handler,
+            'description' => $description,
+            'args' => $args,
+            'options' => $options,
+            'group' => null,
+            'color' => $color ?: 'green',
+            'hidden' => $hidden
         ];
     }
 
@@ -151,7 +225,7 @@ class App
      *
      * @return array
      */
-    public function getRegisteredCommands()
+    public function getRegisteredCommands(): array
     {
         return $this->commands;
     }
@@ -159,6 +233,19 @@ class App
     public function getCommandGroups(): array
     {
         return $this->commandGroups;
+    }
+
+    /**
+     * Configure the allowed shell-completion values for a command argument.
+     *
+     * @param string $command
+     * @param string $argument
+     * @param array $values
+     * @return void
+     */
+    public function setCompletionValues(string $command, string $argument, array $values): void
+    {
+        $this->shellCompletion->setValues($command, $argument, $values);
     }
 
     public function setListHeader(string $header, ?string $color = null, ?int $typingDelay = null): void
@@ -191,12 +278,15 @@ class App
      * @param string $keyword
      * @return array
      */
-    public function getCommandsLike($keyword)
+    public function getCommandsLike(string $keyword): array
     {
         $regex = preg_quote($keyword);
         $commands = $this->getRegisteredCommands();
         $matchedCommands = [];
         foreach ($commands as $name => $command) {
+            if (!empty($command['hidden'])) {
+                continue;
+            }
             if ((bool) preg_match("/".$regex."/", $name)) {
                 $matchedCommands[$name] = $command;
             }
@@ -205,11 +295,34 @@ class App
     }
 
     /**
+     * Get command names for tab completion.
+     *
+     * @param array $words Command words, excluding the executable name.
+     * @return array
+     */
+    public function getCompletionSuggestions(array $words = []): array
+    {
+        return $this->shellCompletion->getSuggestions($this->commands, $words);
+    }
+
+    /**
+     * Get shell completion script.
+     *
+     * @param string $shell
+     * @param string|null $command
+     * @return string|null
+     */
+    public function getCompletionScript(string $shell = 'bash', ?string $command = null): ?string
+    {
+        return $this->shellCompletion->getScript($shell, $command);
+    }
+
+    /**
      * Get filename
      *
      * @return string
      */
-    public function getFilename()
+    public function getFilename(): ?string
     {
         return $this->filename;
     }
@@ -219,7 +332,7 @@ class App
      *
      * @return array
      */
-    public function getOptions()
+    public function getOptions(): array
     {
         return $this->options;
     }
@@ -229,7 +342,7 @@ class App
      *
      * @return array
      */
-    public function getArguments()
+    public function getArguments(): array
     {
         return $this->arguments;
     }
@@ -237,9 +350,9 @@ class App
     /**
      * Run app
      */
-    public function run()
+    public function run(): void
     {
-        return $this->execute($this->command);
+        $this->execute($this->command);
     }
 
     /**
@@ -247,18 +360,20 @@ class App
      *
      * @param string $command command name
      */
-    public function execute($command)
+    public function execute(?string $command): void
     {
         if (!$command) {
             $command = "list";
         }
 
         if (!isset($this->commands[$command])) {
-            return $this->showCommandsLike($command);
+            $this->showCommandsLike($command);
+            return;
         }
 
         if (array_key_exists('help', $this->options) OR array_key_exists('h', $this->optionsAlias)) {
-            return $this->showHelp($command);
+            $this->showHelp($command);
+            return;
         }
 
         try {
@@ -272,7 +387,7 @@ class App
 
             call_user_func_array($handler, $arguments);
         } catch(Exception $e) {
-            return $this->handleError($e);
+            $this->handleError($e);
         }
     }
 
@@ -282,7 +397,7 @@ class App
      * @param string $key
      * @return mixed
      */
-    public function option($key)
+    public function option(string $key): mixed
     {
         return isset($this->resolvedOptions[$key])? $this->resolvedOptions[$key] : null;
     }
@@ -294,7 +409,7 @@ class App
      * @param string $fgColor
      * @param string $bgColor
      */
-    public function write($message, $fgColor = null, $bgColor = null)
+    public function write(string $message, ?string $fgColor = null, ?string $bgColor = null): void
     {
         if ($fgColor OR $bgColor) {
             $message = $this->color($message, $fgColor, $bgColor);
@@ -309,9 +424,9 @@ class App
      * @param string $fgColor
      * @param string $bgColor
      */
-    public function writeln($message, $fgColor = null, $bgColor = null)
+    public function writeln(string $message, ?string $fgColor = null, ?string $bgColor = null): void
     {
-        return $this->write($message.PHP_EOL, $fgColor, $bgColor);
+        $this->write($message.PHP_EOL, $fgColor, $bgColor);
     }
 
     /**
@@ -321,7 +436,7 @@ class App
      * @param string $fgColor
      * @param string $bgColor
      */
-    public function error($message, $exit = true)
+    public function error(string $message, bool $exit = true): void
     {
         $this->writeln($message, 'red');
         if ($exit) exit();
@@ -334,7 +449,7 @@ class App
      * @param string $fgColor
      * @param string $bgColor
      */
-    public function color($text, $fgColor, $bgColor = null)
+    public function color(string $text, ?string $fgColor, ?string $bgColor = null): string
     {
         if ($this->isWindows()) {
             return $text;
@@ -366,7 +481,7 @@ class App
      * @param array $command
      * @return array
      */
-    protected function parseCommand($command)
+    protected function parseCommand(string $command): array
     {
         $exp = explode(" ", trim($command), 2);
         $command = trim($exp[0]);
@@ -423,16 +538,18 @@ class App
      * @param array $argv
      * @return array
      */
-    protected function parseArgv(array $argv)
+    protected function parseArgv(array $argv): array
     {
         $filename = array_shift($argv);
+        $filename = $filename === null ? null : (string) $filename;
         $command = array_shift($argv);
+        $command = $command === null ? null : (string) $command;
         $arguments = [];
         $options = [];
         $optionsAlias = [];
 
         while (count($argv)) {
-            $arg = array_shift($argv);
+            $arg = (string) array_shift($argv);
             if ($this->isOption($arg)) {
                 $optName = ltrim($arg, "-");
                 if ($this->isOptionWithValue($arg)) {
@@ -473,7 +590,7 @@ class App
      *
      * @return boolean
      */
-    private function isWindows()
+    private function isWindows(): bool
     {
         return '\\' === DIRECTORY_SEPARATOR;
     }
@@ -483,7 +600,7 @@ class App
      *
      * @return bool
      */
-    private function hasSttyAvailable()
+    private function hasSttyAvailable(): bool
     {
         if (null !== self::$stty) {
             return self::$stty;
@@ -497,7 +614,7 @@ class App
      *
      * @return string|bool The valid shell name, false in case no valid shell is found
      */
-    private function getShell()
+    private function getShell(): string|false
     {
         if (null !== self::$shell) {
             return self::$shell;
@@ -507,7 +624,7 @@ class App
             // handle other OSs with bash/zsh/ksh/csh if available to hide the answer
             $test = "/usr/bin/env %s -c 'echo OK' 2> /dev/null";
             foreach (array('bash', 'zsh', 'ksh', 'csh') as $sh) {
-                if ('OK' === rtrim(shell_exec(sprintf($test, $sh)))) {
+                if ('OK' === rtrim((string) shell_exec(sprintf($test, $sh)))) {
                     self::$shell = $sh;
                     break;
                 }
@@ -522,7 +639,7 @@ class App
      * @param string $arg
      * @return boolean
      */
-    protected function isOption($arg)
+    protected function isOption(string $arg): bool
     {
         return (bool) preg_match("/^--\w+/", $arg);
     }
@@ -533,7 +650,7 @@ class App
      * @param string $arg
      * @return boolean
      */
-    protected function isOptionAlias($arg)
+    protected function isOptionAlias(string $arg): bool
     {
         return (bool) preg_match("/^-[a-z]+/i", $arg);
     }
@@ -544,7 +661,7 @@ class App
      * @param string $arg
      * @return boolean
      */
-    protected function isOptionWithValue($arg)
+    protected function isOptionWithValue(string $arg): bool
     {
         return strpos($arg, "=") !== false;
     }
@@ -555,14 +672,15 @@ class App
      * @param string $command
      * @return array resolved arguments
      */
-    protected function validateAndResolveArguments($command)
+    protected function validateAndResolveArguments(string $command): array
     {
         $args = $this->arguments;
         $commandArgs = $this->commands[$command]['args'];
         $resolvedArgs = [];
         foreach($commandArgs as $argName => $argOption) {
             if (!$argOption['is_optional'] AND empty($args)) {
-                return $this->error("Argument {$argName} is required");
+                $this->error("Argument {$argName} is required");
+                return [];
             }
             if ($argOption['is_array']) {
                 $value = $args;
@@ -581,7 +699,7 @@ class App
      *
      * @param string $command
      */
-    protected function validateAndResolveOptions($command)
+    protected function validateAndResolveOptions(string $command): void
     {
         $options = $this->options;
         $optionsAlias = $this->optionsAlias;
@@ -611,16 +729,13 @@ class App
      *
      * @param string $keyword
      */
-    protected function showCommandsLike($keyword)
+    protected function showCommandsLike(string $keyword): void
     {
-        $commands = $this->getRegisteredCommands();
         $matchedCommands = $this->getCommandsLike($keyword);
 
         if(count($matchedCommands) === 1) {
             $keys = array_keys($matchedCommands);
-            $values = array_values($matchedCommands);
             $name = array_shift($keys);
-            $command = array_shift($values);
             $this->writeln(PHP_EOL.$this->color(" Command '{$keyword}' is not available. Did you mean '{$name}'?", 'red').PHP_EOL);
         } else {
             $this->writeln(PHP_EOL.$this->color(" Command '{$keyword}' is not available.", 'red'));
@@ -635,7 +750,7 @@ class App
      *
      * @param string $commandName
      */
-    protected function showHelp($commandName)
+    protected function showHelp(string $commandName): void
     {
         $command = $this->commands[$commandName];
         $maxLen = 0;
@@ -689,13 +804,13 @@ class App
      *
      * @param Exception $exception
      */
-    public function handleError(Exception $exception)
+    public function handleError(Exception $exception): void
     {
         $indent = str_repeat(" ", 2);
         $class = get_class($exception);
         $file = $exception->getFile();
         $line = $exception->getLine();
-        $filepath = function($file) {
+        $filepath = function(string $file): string {
             return str_replace(dirname(__DIR__).DIRECTORY_SEPARATOR, '', $file);
         };
         $message = $exception->getMessage();
@@ -719,7 +834,7 @@ class App
 
             $traces = $exception->getTrace();
             $count = count($traces);
-            $traceFunction = function($trace) {
+            $traceFunction = function(array $trace): string {
                 $args = implode(', ', array_map([$this, 'stringify'], $trace['args']));
                 if ($trace['function'] == '{closure}') {
                     return 'Closure('.$args.')';
@@ -749,7 +864,7 @@ class App
     /**
      * Stringify value
      */
-    protected function stringify($value)
+    protected function stringify(mixed $value): string
     {
         if (is_object($value)) {
             return get_class($value);
@@ -766,7 +881,7 @@ class App
         } elseif(is_null($value)) {
             return 'null';
         } else {
-            return $value;
+            return (string) $value;
         }
     }
 

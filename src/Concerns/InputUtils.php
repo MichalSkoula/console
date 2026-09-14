@@ -2,9 +2,11 @@
 
 namespace MichalSkoula\Console\Concerns;
 
+use RuntimeException;
+
 trait InputUtils
 {
-    protected $questionSuffix = "\n> ";
+    protected string $questionSuffix = PHP_EOL . '> ';
 
     /**
      * Asking question
@@ -13,7 +15,7 @@ trait InputUtils
      * @param string $fgColor
      * @param string $bgColor
      */
-    public function ask($question, $default = null)
+    public function ask(string $question, mixed $default = null): mixed
     {
         if ($default) {
             $question = $question. ' ' .$this->color("[{$default}]", 'green');
@@ -22,8 +24,12 @@ trait InputUtils
         $this->write($question.$this->questionSuffix, 'blue');
 
         $handle = fopen("php://stdin", "r");
-        $answer = trim(fgets($handle));
+        if ($handle === false) {
+            throw new RuntimeException('Unable to read input.');
+        }
+        $value = fgets($handle);
         fclose($handle);
+        $answer = $value === false ? '' : trim($value);
         return $answer ?: $default;
     }
 
@@ -34,7 +40,7 @@ trait InputUtils
      * @param string $fgColor
      * @param string $bgColor
      */
-    public function askSecret($question, $default = null)
+    public function askSecret(string $question, mixed $default = null): mixed
     {
         if ($default) {
             $question = $question. ' ' .$this->color("[{$default}]", 'green');
@@ -43,15 +49,18 @@ trait InputUtils
         $this->write($question.$this->questionSuffix);
 
         if ($this->isWindows()) {
-            throw new \RuntimeException('Secret input is not supported on Windows');
+            throw new RuntimeException('Secret input is not supported on Windows');
         }
 
         if ($this->hasSttyAvailable()) {
             $sttyMode = shell_exec('stty -g');
             shell_exec('stty -echo');
             $handle = fopen("php://stdin", "r");
+            if ($handle === false) {
+                throw new RuntimeException('Unable to read input.');
+            }
             $value = fgets($handle, 4096);
-            shell_exec(sprintf('stty %s', $sttyMode));
+            shell_exec(sprintf('stty %s', (string) $sttyMode));
             fclose($handle);
             if (false === $value) {
                 throw new RuntimeException('Aborted');
@@ -64,12 +73,12 @@ trait InputUtils
         if (false !== $shell = $this->getShell()) {
             $readCmd = $shell === 'csh' ? 'set mypassword = $<' : 'read -r mypassword';
             $command = sprintf("/usr/bin/env %s -c 'stty -echo; %s; stty echo; echo \$mypassword'", $shell, $readCmd);
-            $value = rtrim(shell_exec($command));
+            $value = rtrim((string) shell_exec($command));
             $this->writeln('');
             return $value ?: $default;
         }
 
-        throw new \RuntimeException('Unable to hide the response.');
+        throw new RuntimeException('Unable to hide the response.');
     }
 
     /**
@@ -79,7 +88,7 @@ trait InputUtils
      * @param string $fgColor
      * @param string $bgColor
      */
-    public function confirm($question, $default = false)
+    public function confirm(string $question, bool $default = false): bool
     {
         $availableAnswers = [
             'yes' => true,

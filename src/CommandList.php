@@ -5,11 +5,11 @@ namespace MichalSkoula\Console;
 class CommandList extends Command
 {
 
-    protected $signature = "list {keyword?}";
+    protected string $signature = "list {keyword?}";
 
-    protected $description = "Show available commands";
+    protected string $description = "Show available commands";
 
-    public function handle($keyword)
+    public function handle(?string $keyword): void
     {
         $count = 0;
         $maxLen = 0;
@@ -18,6 +18,12 @@ class CommandList extends Command
             $this->writeln(PHP_EOL.$this->color(" Here are commands like '{$keyword}': ", 'blue').PHP_EOL);
         } else {
             $commands = $this->getRegisteredCommands();
+            $commands = array_filter($commands, function($command, $name) {
+                if (!empty($command['hidden']) || $name === '__complete') {
+                    return false;
+                }
+                return true;
+            }, ARRAY_FILTER_USE_BOTH);
             unset($commands['list']);
             $header = $this->getListHeader();
             if ($header !== null) {

@@ -112,3 +112,31 @@ Pass a third argument in milliseconds to display the header with a typing effect
 ```php
 $app->setListHeader($asciiArt, Color::CYAN, 12);
 ```
+
+## Shell autocomplete
+
+Enable Bash autocomplete with a generated script.
+
+```bash
+source <(./cli completion bash)
+```
+
+To enable it permanently, generate the script once and load it from `~/.bashrc`:
+
+```bash
+./cli completion bash > ~/.cli-completion.bash
+echo 'source ~/.cli-completion.bash' >> ~/.bashrc
+source ~/.bashrc
+```
+
+Command names and options are detected automatically. For positional arguments,
+whose possible values cannot be inferred from the command signature, declare
+the allowed values explicitly:
+
+```php
+$app->command('deploy {environment}', 'Deploy the application', function (string $environment) {
+    // ...
+});
+
+$app->setCompletionValues('deploy', 'environment', ['staging', 'production']);
+```

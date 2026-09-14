@@ -2,39 +2,40 @@
 
 namespace MichalSkoula\Console;
 
+use Exception;
+
 abstract class Command
 {
+    protected ?App $app = null;
 
-    protected $app;
+    protected string $signature = '';
 
-    protected $signature;
+    protected string $description = '';
 
-    protected $description;
-
-    public function getSignature()
+    public function getSignature(): string
     {
         return $this->signature;
     }
 
-    public function getDescription()
+    public function getDescription(): string
     {
         return $this->description;
     }
 
-    public function defineApp(App $app)
+    public function defineApp(App $app): void
     {
         if (!$this->app) {
             $this->app = $app;
         }
     }
 
-    public function __call($method, $args)
+    public function __call(string $method, array $args): mixed
     {
         if ($this->app AND method_exists($this->app, $method)) {
             return call_user_func_array([$this->app, $method], $args);
         } else {
             $class = get_class($this);
-            throw new \Exception("Call to undefined method {$class}::{$method}");
+            throw new Exception("Call to undefined method {$class}::{$method}");
         }
     }
 

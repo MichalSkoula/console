@@ -3,9 +3,9 @@
 class ModuleArticle extends Module
 {
 
-    protected $name = "article";
+    protected string $name = "article";
 
-    public function requirements($we)
+    public function requirements(mixed $we): void
     {
         $we->needTable(function($table) {
             $table->primary("id");
