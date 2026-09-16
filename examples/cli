@@ -6,7 +6,7 @@ declare(strict_types=1);
 use MichalSkoula\Console\App;
 use MichalSkoula\Console\Color;
 
-require dirname(__DIR__) . '/vendor/autoload.php';
+require __DIR__ . '/../vendor/autoload.php';
 
 $app = new App();
 
@@ -17,36 +17,76 @@ $app->setListHeader(<<<'HEADER'
 ██║     ██║   ██║██║╚██╗██║╚════██║██║   ██║██║     ██╔══╝      ██╔═██╗ ██║   ██║
 ╚██████╗╚██████╔╝██║ ╚████║███████║╚██████╔╝███████╗███████╗    ██║  ██╗██║   ██║
  ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝ ╚═════╝ ╚══════╝╚══════╝    ╚═╝  ╚═╝╚═╝   ╚═╝
-HEADER, Color::LIGHT_GREEN);
+HEADER
+    , Color::LIGHT_GREEN);
 
 $app->group('Development', Color::BLUE, function (): void {
     $this->command('lint', 'Check code style', function (): void {
-        $this->writeln('Code style is valid.');
+        $this->writeln('Code style is valid.', Color::LIGHT_GREEN);
     });
 
-    $this->command('test', 'Run the test suite', function (): void {
-        $this->writeln('All tests passed.');
+    $this->command('test {suite=all::Test suite to run} {--coverage::Generate a coverage report}', 'Run automated tests', function (string $suite): void {
+        $message = "The {$suite} test suite passed.";
+        if ($this->option('coverage')) {
+            $message .= ' Coverage report generated.';
+        }
+        $this->writeln($message, Color::LIGHT_GREEN);
+    });
+
+    $this->command('make:user {email::New user email address}', 'Create a user with a securely entered password', function (string $email): void {
+        $password = (string) $this->askSecret('Password');
+        if (! $this->confirm("Create user {$email}?")) {
+            $this->writeln('User creation cancelled.', Color::YELLOW);
+            return;
+        }
+
+        $this->writeln("User {$email} created with a " . strlen($password) . '-character password.', Color::LIGHT_GREEN);
     });
 });
 
 $app->group('Deployment', Color::PURPLE, function (): void {
-    $this->command('deploy {environment}', 'Deploy the application', function (string $environment): void {
-        $this->writeln("Deployed to {$environment}.");
-    });
+    $this->command(
+        'deploy {environment::Target environment} {--d|dry-run::Preview without publishing} {--skip-migrations::Do not run database migrations}',
+        implode(PHP_EOL, [
+            'Deploy the application',
+            'staging             Deploy to the testing environment',
+            'production          Deploy to the live environment',
+        ]),
+        function (string $environment): void {
+            $action = $this->option('dry-run') ? 'Previewed' : 'Deployed';
+            $suffix = $this->option('skip-migrations') ? ' without migrations' : '';
+            $this->writeln("{$action} the application in {$environment}{$suffix}.", Color::LIGHT_GREEN);
+        }
+    );
 
-    $this->command('rollback', 'Roll back the latest deployment', function (): void {
-        $this->writeln('Deployment rolled back.');
-    });
+    $this->command('rollback {release?::Release identifier}', 'Roll back a deployment', function (?string $release): void {
+        $target = $release ?? 'the latest release';
+        $this->writeln("Rolled back {$target}.", Color::YELLOW);
+    }, Color::LIGHT_RED);
 });
 
-$app->group('Maintenance', Color::YELLOW, function (): void {
-    $this->command('cache:clear', 'Clear the application cache', function (): void {
-        $this->writeln('Cache cleared.');
+$app->group('Data and maintenance', Color::YELLOW, function (): void {
+    $this->command(
+        'export {format=csv::Output format} {--o|output=export::Output filename} {--include-archived::Include archived records}',
+        'Export application data',
+        function (string $format): void {
+            $scope = $this->option('include-archived') ? 'all' : 'active';
+            $this->writeln("Exported {$scope} records as {$format} to {$this->option('output')}.", Color::LIGHT_GREEN);
+        }
+    );
+
+    $this->command('cache:clear {tags*?::Cache tags to clear}', 'Clear all cache entries or selected tags', function (array $tags): void {
+        $target = $tags === [] ? 'all entries' : implode(', ', $tags);
+        $this->writeln("Cleared {$target}.", Color::LIGHT_GREEN);
     });
 
     $this->command('cache:warm', 'Warm the application cache', function (): void {
-        $this->writeln('Cache warmed.');
+        $this->writeln('Cache warmed.', Color::LIGHT_GREEN);
     });
 });
+
+$app->setCompletionValues('test', 'suite', ['all', 'unit', 'integration']);
+$app->setCompletionValues('deploy', 'environment', ['staging', 'production']);
+$app->setCompletionValues('export', 'format', ['csv', 'json', 'xml']);
 
 $app->run();

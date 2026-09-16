@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MichalSkoula\Console;
 
 use Exception;
@@ -24,19 +26,18 @@ abstract class Command
 
     public function defineApp(App $app): void
     {
-        if (!$this->app) {
+        if (! $this->app instanceof \MichalSkoula\Console\App) {
             $this->app = $app;
         }
     }
 
     public function __call(string $method, array $args): mixed
     {
-        if ($this->app AND method_exists($this->app, $method)) {
+        if ($this->app instanceof \MichalSkoula\Console\App && method_exists($this->app, $method)) {
             return call_user_func_array([$this->app, $method], $args);
-        } else {
-            $class = get_class($this);
-            throw new Exception("Call to undefined method {$class}::{$method}");
         }
-    }
 
+        $class = static::class;
+        throw new Exception("Call to undefined method {$class}::{$method}");
+    }
 }

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MichalSkoula\Console\Concerns;
 
 use RuntimeException;
@@ -10,23 +12,20 @@ trait InputUtils
 
     /**
      * Asking question
-     *
-     * @param string $message
-     * @param string $fgColor
-     * @param string $bgColor
      */
     public function ask(string $question, mixed $default = null): mixed
     {
         if ($default) {
-            $question = $question. ' ' .$this->color("[{$default}]", 'green');
+            $question = $question . ' ' . $this->color("[{$default}]", 'green');
         }
 
-        $this->write($question.$this->questionSuffix, 'blue');
+        $this->write($question . $this->questionSuffix, 'blue');
 
-        $handle = fopen("php://stdin", "r");
+        $handle = fopen('php://stdin', 'r');
         if ($handle === false) {
             throw new RuntimeException('Unable to read input.');
         }
+
         $value = fgets($handle);
         fclose($handle);
         $answer = $value === false ? '' : trim($value);
@@ -35,18 +34,14 @@ trait InputUtils
 
     /**
      * Asking secret question
-     *
-     * @param string $message
-     * @param string $fgColor
-     * @param string $bgColor
      */
     public function askSecret(string $question, mixed $default = null): mixed
     {
         if ($default) {
-            $question = $question. ' ' .$this->color("[{$default}]", 'green');
+            $question = $question . ' ' . $this->color("[{$default}]", 'green');
         }
 
-        $this->write($question.$this->questionSuffix);
+        $this->write($question . $this->questionSuffix);
 
         if ($this->isWindows()) {
             throw new RuntimeException('Secret input is not supported on Windows');
@@ -55,16 +50,18 @@ trait InputUtils
         if ($this->hasSttyAvailable()) {
             $sttyMode = shell_exec('stty -g');
             shell_exec('stty -echo');
-            $handle = fopen("php://stdin", "r");
+            $handle = fopen('php://stdin', 'r');
             if ($handle === false) {
                 throw new RuntimeException('Unable to read input.');
             }
+
             $value = fgets($handle, 4096);
             shell_exec(sprintf('stty %s', (string) $sttyMode));
             fclose($handle);
-            if (false === $value) {
+            if ($value === false) {
                 throw new RuntimeException('Aborted');
             }
+
             $value = trim($value);
             $this->writeln('');
             return $value ?: $default;
@@ -83,10 +80,6 @@ trait InputUtils
 
     /**
      * Input confirmation
-     *
-     * @param string $message
-     * @param string $fgColor
-     * @param string $bgColor
      */
     public function confirm(string $question, bool $default = false): bool
     {
@@ -94,26 +87,26 @@ trait InputUtils
             'yes' => true,
             'no' => false,
             'y' => true,
-            'n' => false
+            'n' => false,
         ];
 
         $result = null;
         do {
             if ($default) {
-                $suffix = $this->color("[", 'dark_gray').$this->color("Y", "green").$this->color("/n]", 'dark_gray');
+                $suffix = $this->color('[', 'dark_gray') . $this->color('Y', 'green') . $this->color('/n]', 'dark_gray');
             } else {
-                $suffix = $this->color("[y/", 'dark_gray').$this->color("N", "green").$this->color("]", 'dark_gray');
+                $suffix = $this->color('[y/', 'dark_gray') . $this->color('N', 'green') . $this->color(']', 'dark_gray');
             }
-            $answer = $this->ask($question.' '.$suffix) ?: ($default ? 'y' : 'n');
 
-            if (!isset($availableAnswers[$answer])) {
+            $answer = $this->ask($question . ' ' . $suffix) ?: ($default ? 'y' : 'n');
+
+            if (! isset($availableAnswers[$answer])) {
                 $this->writeln('Please type: y, n, yes, or no.', 'red');
             } else {
                 $result = $availableAnswers[$answer];
             }
-        } while (is_null($result));
+        } while ($result === null);
 
         return $availableAnswers[$answer];
     }
-
 }

@@ -1,33 +1,39 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MichalSkoula\Console;
 
+/**
+ * @see \MichalSkoula\Console\Tests\ShellCompletionTest
+ */
 final class ShellCompletion
 {
-    private string $filename;
-
     private array $values = [];
 
-    public function __construct(string $filename)
-    {
-        $this->filename = $filename;
-    }
+    public function __construct(
+        private readonly string $filename
+    ) {}
 
     public function setValues(string $command, string $argument, array $values): void
     {
         $this->values[$command][$argument] = array_values($values);
     }
 
+    /**
+     * @param array<string, mixed> $commands
+     * @param array<int, mixed> $words
+     */
     public function getSuggestions(array $commands, array $words = []): array
     {
         $commandName = (string) ($words[0] ?? '');
         $currentWord = $words === [] ? '' : (string) end($words);
 
         if (count($words) <= 1) {
-            return $this->_filter_values(array_keys($commands), $currentWord, $commands);
+            return $this->filterValues(array_keys($commands), $currentWord, $commands);
         }
 
-        if (!isset($commands[$commandName])) {
+        if (! isset($commands[$commandName])) {
             return [];
         }
 
@@ -41,7 +47,7 @@ final class ShellCompletion
                 }
             }
 
-            return $this->_filter_values($options, $currentWord);
+            return $this->filterValues($options, $currentWord);
         }
 
         $argumentNames = array_keys($command['args']);
@@ -51,7 +57,7 @@ final class ShellCompletion
             return [];
         }
 
-        return $this->_filter_values(
+        return $this->filterValues(
             $this->values[$commandName][$argumentName] ?? [],
             $currentWord
         );
@@ -97,18 +103,24 @@ _%1$s() {
   done < <( %2$s __complete "${words[@]:1}" )
 }
 complete -F _%1$s %2$s
-SCRIPT, $functionName, $escapedCommand);
+SCRIPT
+            , $functionName, $escapedCommand);
     }
 
-    private function _filter_values(array $values, string $prefix, array $commands = []): array
+    /**
+     * @param array<string, mixed> $commands
+     * @return string[]
+     */
+    private function filterValues(array $values, string $prefix, array $commands = []): array
     {
         $suggestions = [];
 
         foreach ($values as $value) {
             $value = (string) $value;
-            if (isset($commands[$value]) && !empty($commands[$value]['hidden'])) {
+            if (isset($commands[$value]) && ! empty($commands[$value]['hidden'])) {
                 continue;
             }
+
             if ($prefix === '' || str_starts_with($value, $prefix)) {
                 $suggestions[] = $value;
             }

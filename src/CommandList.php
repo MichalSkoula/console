@@ -1,13 +1,17 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MichalSkoula\Console;
 
+/**
+ * @see \MichalSkoula\Console\Tests\CommandListTest
+ */
 class CommandList extends Command
 {
+    protected string $signature = 'list {keyword?}';
 
-    protected string $signature = "list {keyword?}";
-
-    protected string $description = "Show available commands";
+    protected string $description = 'Show available commands';
 
     public function handle(?string $keyword): void
     {
@@ -15,15 +19,10 @@ class CommandList extends Command
         $maxLen = 0;
         if ($keyword) {
             $commands = $this->getCommandsLike($keyword);
-            $this->writeln(PHP_EOL.$this->color(" Here are commands like '{$keyword}': ", 'blue').PHP_EOL);
+            $this->writeln(PHP_EOL . $this->color(" Here are commands like '{$keyword}': ", 'blue') . PHP_EOL);
         } else {
             $commands = $this->getRegisteredCommands();
-            $commands = array_filter($commands, function($command, $name) {
-                if (!empty($command['hidden']) || $name === '__complete') {
-                    return false;
-                }
-                return true;
-            }, ARRAY_FILTER_USE_BOTH);
+            $commands = array_filter($commands, fn($command, $name): bool => empty($command['hidden']) && $name !== '__complete', ARRAY_FILTER_USE_BOTH);
             unset($commands['list']);
             $header = $this->getListHeader();
             if ($header !== null) {
@@ -33,23 +32,29 @@ class CommandList extends Command
                         $this->write($character, $header['color']);
                         usleep($header['typing_delay'] * 1000);
                     }
+
                     $this->writeln(PHP_EOL);
                 } else {
                     $this->writeln(PHP_EOL . $header['text'] . PHP_EOL, $header['color']);
                 }
             } else {
-                $this->writeln(PHP_EOL.$this->color(" Available Commands: ", 'blue').PHP_EOL);
+                $this->writeln(PHP_EOL . $this->color(' Available Commands: ', 'blue') . PHP_EOL);
             }
         }
 
-        foreach(array_keys($commands) as $name) {
-            if (strlen($name ) > $maxLen) $maxLen = strlen($name);
+        foreach (array_keys($commands) as $name) {
+            if (strlen($name) > $maxLen) {
+                $maxLen = strlen($name);
+            }
         }
+
         $pad = $maxLen + 3;
 
         $commandGroups = [];
-        foreach ($this->getCommandGroups() as $group) {
-            $commandGroups[$group['name']] = $group + ['commands' => []];
+        foreach ($this->getCommandGroups() as $commandGroup) {
+            $commandGroups[$commandGroup['name']] = $commandGroup + [
+                'commands' => [],
+            ];
         }
 
         $ungroupedCommands = [];
@@ -65,28 +70,33 @@ class CommandList extends Command
             $commandGroups[] = [
                 'name' => $this->getCommandGroups() === [] ? null : 'General',
                 'color' => 'dark_gray',
-                'commands' => $ungroupedCommands
+                'commands' => $ungroupedCommands,
             ];
         }
 
         $groupCount = 0;
-        foreach ($commandGroups as $group) {
-            if ($group['commands'] === []) {
+        foreach ($commandGroups as $commandGroup) {
+            if ($commandGroup['commands'] === []) {
                 continue;
             }
 
-            if ($group['name'] !== null) {
+            if ($commandGroup['name'] !== null) {
                 if ($groupCount > 0) {
                     $this->writeln('');
                 }
-                $this->writeln($this->color($group['name'] . ':', $group['color']));
+
+                $this->writeln($this->color($commandGroup['name'] . ':', $commandGroup['color']));
             }
 
-            foreach ($group['commands'] as $name => $command) {
-                $no = ++$count.'/ ';
-                $this->write(str_repeat(' ', 4 - strlen($no)).$this->color($no, 'dark_gray'));
-                $this->write($this->color($name, $command['color']).str_repeat(' ', $pad - strlen($name)));
-                $this->writeln($command['description']);
+            foreach ($commandGroup['commands'] as $name => $command) {
+                $no = ++$count . '/ ';
+                $this->write(str_repeat(' ', 4 - strlen($no)) . $this->color($no, 'dark_gray'));
+                $this->write($this->color($name, $command['color']) . str_repeat(' ', $pad - strlen($name)));
+                $descriptionLines = preg_split('/\R/', $command['description']) ?: [''];
+                $this->writeln(array_shift($descriptionLines));
+                foreach ($descriptionLines as $descriptionLine) {
+                    $this->writeln(str_repeat(' ', 4 + $pad) . $descriptionLine);
+                }
             }
 
             ++$groupCount;
@@ -96,5 +106,4 @@ class CommandList extends Command
         $this->writeln("Type '" . $this->color('<command> --help', 'blue') . "' for usage information");
         $this->writeln("Type '" . $this->color('list', 'blue') . "' to show all commands" . PHP_EOL);
     }
-
 }

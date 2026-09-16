@@ -9,9 +9,9 @@ use MichalSkoula\Console\App;
 use MichalSkoula\Console\Color;
 use PHPUnit\Framework\TestCase;
 
-class CommandListTest extends TestCase
+final class CommandListTest extends TestCase
 {
-    public function test_lists_grouped_commands_in_registration_order_without_empty_rows(): void
+    public function testListsGroupedCommandsInRegistrationOrderWithoutEmptyRows(): void
     {
         $app = new App(['console', 'list']);
         $app->group('Build', Color::BLUE, function (): void {
@@ -19,15 +19,15 @@ class CommandListTest extends TestCase
             $this->command('alpha', 'Alpha command', function (): void {});
         });
 
-        $output = $this->_list_commands($app);
+        $output = $this->listCommands($app);
 
-        self::assertMatchesRegularExpression('/Build:\n\s*1\/ bravo\s+Bravo command\n\s*2\/ alpha\s+Alpha command/', $output);
-        self::assertStringNotContainsString('General:', $output);
-        self::assertStringNotContainsString('list                  Show available commands', $output);
-        self::assertStringContainsString("\nType '<command> --help' for usage information\nType 'list' to show all commands", $output);
+        $this->assertMatchesRegularExpression('/Build:\n\s*1\/ bravo\s+Bravo command\n\s*2\/ alpha\s+Alpha command/', $output);
+        $this->assertStringNotContainsString('General:', $output);
+        $this->assertStringNotContainsString('list                  Show available commands', $output);
+        $this->assertStringContainsString("\nType '<command> --help' for usage information\nType 'list' to show all commands", $output);
     }
 
-    public function test_keeps_group_registration_order(): void
+    public function testKeepsGroupRegistrationOrder(): void
     {
         $app = new App(['console', 'list']);
         $app->group('Second', Color::RED, function (): void {
@@ -37,12 +37,72 @@ class CommandListTest extends TestCase
             $this->command('first', 'First command', function (): void {});
         });
 
-        $output = $this->_list_commands($app);
+        $output = $this->listCommands($app);
 
-        self::assertGreaterThan(strpos($output, 'Second:'), strpos($output, 'First:'));
+        $this->assertGreaterThan(strpos($output, 'Second:'), strpos($output, 'First:'));
     }
 
-    public function test_displays_unicode_list_header_and_command_color(): void
+    public function testAlignsMultilineDescriptions(): void
+    {
+        $app = new App(['console', 'list']);
+        $app->command('short', "First line\nSecond line\n  Indented detail", function (): void {});
+        $app->command('long-command', 'Long command', function (): void {});
+
+        $output = $this->listCommands($app);
+        $lines = explode(PHP_EOL, $output);
+        $firstLine = $this->findLine($lines, 'First line');
+        $secondLine = $this->findLine($lines, 'Second line');
+        $detailLine = $this->findLine($lines, 'Indented detail');
+
+        $this->assertSame(strpos($firstLine, 'First line'), strpos($secondLine, 'Second line'));
+        $this->assertSame(strpos($firstLine, 'First line') + 2, strpos($detailLine, 'Indented detail'));
+    }
+
+    public function testAlignsMultilineDescriptionInCommandHelp(): void
+    {
+        $app = new App(['console', 'demo', '--help']);
+        $app->command('demo', "First line\nSecond line", function (): void {});
+
+        ob_start();
+        $app->run();
+        $output = $this->stripColors((string) ob_get_clean());
+
+        $this->assertStringContainsString("\n First line\n Second line\n", $output);
+    }
+
+    public function testSupportsHyphenatedOptionNames(): void
+    {
+        $enabledOptions = [];
+        $app = new App(['console', 'demo', '--auth', '--eshop-advanced']);
+        $app->command('demo {--auth::Run auth tests} {--eshop-advanced::Run advanced tests}', 'Demo command', function () use (&$enabledOptions): void {
+            $enabledOptions = [
+                'auth' => $this->option('auth'),
+                'eshop-advanced' => $this->option('eshop-advanced'),
+            ];
+        });
+
+        $app->run();
+
+        $this->assertSame([
+            'auth' => true,
+            'eshop-advanced' => true,
+        ], $enabledOptions);
+        $this->assertSame(['--eshop-advanced'], $app->getCompletionSuggestions(['demo', '--eshop']));
+    }
+
+    public function testDisplaysOptionDescriptionsInDarkGray(): void
+    {
+        $app = new App(['console', 'demo', '--help']);
+        $app->command('demo {--dry-run::Preview without saving}', 'Demo command', function (): void {});
+
+        ob_start();
+        $app->run();
+        $output = (string) ob_get_clean();
+
+        $this->assertStringContainsString("\033[1;30mPreview without saving\033[0m", $output);
+    }
+
+    public function testDisplaysUnicodeListHeaderAndCommandColor(): void
     {
         $app = new App(['console', 'list']);
         $app->setListHeader("My Console\n█", Color::CYAN);
@@ -52,11 +112,11 @@ class CommandListTest extends TestCase
         $app->execute('list');
         $output = (string) ob_get_clean();
 
-        self::assertStringContainsString("My Console\n█", $this->_strip_colors($output));
-        self::assertStringContainsString("\033[0;31mdanger\033[0m", $output);
+        $this->assertStringContainsString("My Console\n█", $this->stripColors($output));
+        $this->assertStringContainsString("\033[0;31mdanger\033[0m", $output);
     }
 
-    public function test_rejects_negative_header_typing_delay(): void
+    public function testRejectsNegativeHeaderTypingDelay(): void
     {
         $app = new App(['console', 'list']);
 
@@ -64,16 +124,27 @@ class CommandListTest extends TestCase
         $app->setListHeader('My Console', Color::CYAN, -1);
     }
 
-    private function _list_commands(App $app): string
+    private function listCommands(App $app): string
     {
         ob_start();
         $app->execute('list');
 
-        return $this->_strip_colors((string) ob_get_clean());
+        return $this->stripColors((string) ob_get_clean());
     }
 
-    private function _strip_colors(string $output): string
+    private function stripColors(string $output): string
     {
         return (string) preg_replace('/\033\[[\d;]*m/', '', $output);
+    }
+
+    private function findLine(array $lines, string $text): string
+    {
+        foreach ($lines as $line) {
+            if (str_contains($line, $text)) {
+                return $line;
+            }
+        }
+
+        self::fail("Line containing '{$text}' not found");
     }
 }

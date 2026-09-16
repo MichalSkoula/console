@@ -2,9 +2,9 @@ PHP Console Kit
 ====================
 
 PHP Console Kit is a simple PHP library for creating command-line applications.
-This library strongly inspired by [Laravel Artisan Console](https://laravel.com/docs/5.4/artisan). This project is a fork of [rakit/console](https://github.com/rakit/console).
+Library strongly inspired by [Laravel Artisan Console](https://laravel.com/docs/5.4/artisan). This project is based on [rakit/console](https://github.com/rakit/console).
 
-<img width="905" height="331" alt="image" src="https://github.com/user-attachments/assets/6485e772-846a-4e19-b735-dab7f407c5bf" />
+![Grouped command list with colors and a custom header](docs/images/command-list.png)
 
 ## Features
 
@@ -12,6 +12,8 @@ This library strongly inspired by [Laravel Artisan Console](https://laravel.com/
 * Built-in command `list`.
 * Auto help handler for each commands.
 * Easy command signature.
+* Aligned multiline command descriptions.
+* Long options with hyphenated names.
 * Password input.
 * Simple Coloring.
 
@@ -96,6 +98,60 @@ $app->command('danger', 'Run a dangerous command', function () {
 
 Available foreground colors are defined as `Color` constants, for example `Color::LIGHT_GREEN` and `Color::YELLOW`.
 
+## Multiline descriptions
+
+Command descriptions may contain multiple lines. Continuation lines are automatically aligned in both the command list and `--help` output.
+
+```php
+$app->command(
+    'export',
+    implode(PHP_EOL, [
+        'Export records',
+        'recent              Recent records only',
+        'all                 All records',
+    ]),
+    function () {
+        // ...
+    }
+);
+```
+
+The command list renders the continuation lines below the first description line:
+
+```text
+1/ export   Export records
+            recent              Recent records only
+            all                 All records
+```
+
+## Long option names
+
+Long option names may contain hyphens and are included in help and shell autocomplete:
+
+```php
+$app->command(
+    'export {--dry-run::Preview without saving} {--include-archived::Include archived records}',
+    'Export records',
+    function () {
+        if ($this->option('dry-run')) {
+            // ...
+        }
+    }
+);
+```
+
+Running `php cli export --help` includes the declared long options:
+
+```text
+Options:
+  --dry-run           Preview without saving
+  --include-archived  Include archived records
+```
+
+The complete help screen stays aligned even when short aliases and long option names are mixed:
+
+![Command help with an argument and long options](docs/images/deploy-help.png)
+
 ## List header
 
 Use `setListHeader()` to replace the default `Available Commands:` text. The header supports multiple lines, including ASCII art.
@@ -139,4 +195,28 @@ $app->command('deploy {environment}', 'Deploy the application', function (string
 });
 
 $app->setCompletionValues('deploy', 'environment', ['staging', 'production']);
+```
+
+## Development
+
+Install development dependencies and run the complete quality suite:
+
+```bash
+composer install
+composer check
+```
+
+The checks can also be run separately. The default commands only report changes:
+
+```bash
+composer test
+composer ecs
+composer rector
+```
+
+Apply automatic formatting and refactoring explicitly:
+
+```bash
+composer ecs:fix
+composer rector:fix
 ```
